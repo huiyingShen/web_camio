@@ -138,7 +138,8 @@ async function predictWebcam() {
             let xy0 = window.hm.project(x,y);
             // console.log(xy0);
             let st = window.tMap.findStreetFull(xy0);
-            console.log(st);
+            // console.log(st);
+            if (st !== '???') speak(st);
         }
     }
     // else{
@@ -152,6 +153,21 @@ async function predictWebcam() {
     }
 }
 
+function speak(txt){
+    if (window.speechSynthesis) {
+        if (window.speechSynthesis.speaking) return;
+    var msg = new SpeechSynthesisUtterance(txt);
+    
+    // You can adjust various properties of the speech here
+    msg.volume = 1; // From 0 to 1
+    msg.rate = 1; // From 0.1 to 10
+    msg.pitch = 1; // From 0 to 2
+
+    window.speechSynthesis.speak(msg);
+  } else {
+    alert('Sorry, your browser doesn\'t support text to speech.');
+  }
+}
 // In this case, We set width 320, and the height will be computed based on the input stream.
 
 
