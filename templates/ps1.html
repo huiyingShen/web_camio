@@ -1,0 +1,92 @@
+<html>
+    <head>
+      <link rel="stylesheet" href="https://pyscript.net/latest/pyscript.css" />
+      <script defer src="https://pyscript.net/latest/pyscript.js"></script>
+    </head>
+
+  <body>
+  <canvas id="map_canvas"></canvas>
+  <script>
+    name = "Guido" //A JS variable
+    dataURL = "map_canvas.toDataURL()";
+
+    // Define a JS Function
+    function addTwoNumbers(x, y){
+        return x + y;
+    }
+
+    const map_canvas = document.getElementById('map_canvas');
+    const map_ctx = map_canvas.getContext('2d');
+    const map_img = new Image();
+    map_img.src = 'https://huiyingshen.github.io/flask_opencv_js/market_tmap.png';
+    map_img.crossOrigin = "Anonymous";
+    map_img.onload = function() {
+    map_canvas.width = map_img.width;
+    map_canvas.height = map_img.height;
+    map_ctx.drawImage(map_img, 0, 0, map_canvas.width, map_canvas.height); // Drawing the image on the canvas at position (0,0) and scaling it to fill the canvas
+    dataURL = map_canvas.toDataURL();
+    };
+
+    
+</script>
+<py-script>
+    # Import and use JS function and variable into Python
+    from js import name,dataURL, addTwoNumbers
+
+    print(f"Hello {name}")
+    print("Adding 1 and 2 in Javascript: " + str(addTwoNumbers(1, 2)))
+</py-script>
+  
+    <div id="plot"></div>
+    <py-config type="json">
+        {
+          "packages": ["numpy", "matplotlib", "opencv-python"]
+        }
+    </py-config>
+    <py-script>
+import numpy as np
+from js import name,dataURL, addTwoNumbers
+
+print(f"Hello again,  {name}")
+print("dataURL[:10]",dataURL[:10])
+
+def compute_homography(src_points, dst_points):
+    # Check that there are at least 4 corresponding points
+    assert src_points.shape[0] == dst_points.shape[0] and src_points.shape[0] >= 4
+    
+    A = []
+    for i in range(src_points.shape[0]):
+        x, y = src_points[i]
+        u, v = dst_points[i]
+        A.extend([
+            [-x, -y, -1, 0, 0, 0, u*x, u*y, u],
+            [0, 0, 0, -x, -y, -1, v*x, v*y, v]
+        ])
+    A = np.array(A)
+    
+    _, _, V = np.linalg.svd(A)
+    H = V[-1].reshape(3, 3)
+    return H
+
+def warp_func(H,x,y):
+    xy_homogeneous = np.array([x, y, 1])
+    uvw = np.dot(H, xy_homogeneous)
+    return [uvw[1] / uvw[2], uvw[0] / uvw[2]]
+
+# Define four corresponding points
+src_points = np.array([[10, 10], [10, 50], [50, 50], [50, 10]])
+dst_points = np.array([[20, 20], [10, 60], [50, 60], [60, 20]])
+
+# Compute the homography matrix
+H = compute_homography(src_points, dst_points)
+#verify result
+for xy in src_points:
+    print(warp_func(H,xy[0],xy[1]))
+
+
+
+# Note: You might use matplotlib or other libraries to visualize the result
+
+    </py-script>
+  </body>
+</html>

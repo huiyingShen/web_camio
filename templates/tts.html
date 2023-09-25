@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<h1>Text to Speech</h1>
+<p id="text">This is a sample text to be spoken.</p>
+
+<button onclick="textToSpeech()">Speak</button>
+
+<script>
+function textToSpeech() {
+  // Check if speech synthesis is available
+  if (window.speechSynthesis) {
+    var text = document.getElementById('text').innerText;
+    var msg = new SpeechSynthesisUtterance(text);
+    
+    // You can adjust various properties of the speech here
+    msg.volume = 1; // From 0 to 1
+    msg.rate = 1; // From 0.1 to 10
+    msg.pitch = 1; // From 0 to 2
+
+    window.speechSynthesis.speak(msg);
+  } else {
+    alert('Sorry, your browser doesn\'t support text to speech.');
+  }
+}
+</script>
+
+</body>
+</html>

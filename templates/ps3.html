@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+
+    <title>Exporting all Global Python Objects</title>
+
+    <link rel="stylesheet" href="https://pyscript.net/latest/pyscript.css" />
+
+    <script defer src="https://pyscript.net/latest/pyscript.js"></script>
+
+    <py-env>
+    paths
+        ./static/hello.py
+        ./static/circle.py
+    </py-env>
+    <py-script src="./static/hello.py"></py-script>
+    <py-script src="./static/circle.py"></py-script>
+  </head>
+
+<body>
+<canvas id="map_canvas" style="display:none;"></canvas>
+<canvas id="test_canvas" style="display:none;"></canvas>
+<div id="mpl"></div>
+<div id="live"></div>
+<script>
+    dataURL = "map_canvas.toDataURL()"; 
+    const map_canvas = document.getElementById('map_canvas');
+    const map_ctx = map_canvas.getContext('2d');
+    const map_img = new Image();
+    map_img.src = 'https://huiyingshen.github.io/flask_opencv_js/market_tmap.png';
+    map_img.crossOrigin = "Anonymous";
+    map_img.onload = function() {
+    map_canvas.width = map_img.width;
+    map_canvas.height = map_img.height;
+    map_ctx.drawImage(map_img, 0, 0, map_canvas.width, map_canvas.height); // Drawing the image on the canvas at position (0,0) and scaling it to fill the canvas
+    dataURL = map_canvas.toDataURL().substring(21); 
+    };
+    
+    testDataURL = "map_canvas.toDataURL()"; 
+    const test_canvas = document.getElementById('test_canvas');
+    const test_ctx = test_canvas.getContext('2d');
+    const test_img = new Image();
+    test_img.src = 'https://huiyingshen.github.io/flask_opencv_js/marker_test.jpg';
+    test_img.crossOrigin = "Anonymous";
+    test_img.onload = function() {
+    test_canvas.width = test_img.width;
+    test_canvas.height = test_img.height;
+    test_ctx.drawImage(test_img, 0, 0, test_canvas.width, test_canvas.height); // Drawing the image on the canvas at position (0,0) and scaling it to fill the canvas
+    testDataURL = test_canvas.toDataURL().substring(21); 
+    };
+
+    name = "Huiying Shen"
+</script>
+<py-config type="json">
+    {
+        "packages": ["numpy", "matplotlib","opencv-python"]
+    }
+</py-config>
+ <py-script src="./static/homography.py"></py-script>  
+<input type="button" value="Log Python Variables" id="do-math">
+    <py-script>
+import cv2
+from cv2 import aruco
+import numpy as np
+import base64
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+from js import createObject,dataURL,testDataURL
+from pyodide.ffi import create_proxy
+
+
+createObject(create_proxy(globals()), "pyodideGlobals")
+
+def data_uri_to_cv2_img(data_uri):
+    data_uri += "=" * ((4 - len(data_uri) % 4) % 4) # Base64 needs a string with length multiple of 4. If the string is short, it is padded with 1 to 3 =.
+    # print("data_uri[:100] = ",data_uri[:100])
+    nparr = np.frombuffer(base64.b64decode(data_uri), np.uint8)
+    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    print(img.shape)
+    return img
+
+class Homography:
+    def __init__(self):
+        self.ids = []
+        self.corners = []
+        
+    def findId(self,id):
+        for i in range(len(self.ids)):
+            if id[0] == self.ids[i][0]:
+                return i
+        return -1
+    
+    def getCornerPairs(self,corners, ids):
+        if ids is None: return
+        vCn1,vCn2 = [],[]
+        for i,id in enumerate(ids):
+            indx = self.findId(id)
+            if indx != -1:
+                vCn1.extend(corners[i][0])
+                vCn2.extend(self.corners[indx][0])
+        return vCn1,vCn2
+        
+    def getHomography(self,vCn1,vCn2):
+        assert len(vCn1) == len(vCn2) and len(vCn1) >= 4
+        A = []
+        for i in range(len(vCn1)):
+            x, y = vCn1[i]
+            u, v = vCn2[i]
+            A.extend([
+                [-x, -y, -1, 0, 0, 0, u*x, u*y, u],
+                [0, 0, 0, -x, -y, -1, v*x, v*y, v]
+            ])
+        A = np.array(A)
+        
+        _, _, V = np.linalg.svd(A)
+        self.h = V[-1].reshape(3, 3)
+        # print("getHomography(): \n",self.h)
+
+    def verify(self,vCn1,vCn2):
+         for i in range(len(vCn1)):
+            x, y = vCn1[i]
+            u1,v1 = self.warp_func(x,y)
+            u, v = vCn2[i]
+            print(f'{u:5.1f} {v:5.1f} {u1:5.1f} {v1:5.1f} ') 
+
+    def warp_func(self,x,y):
+        xy_homogeneous = np.array([x, y, 1])
+        uvw = np.dot(self.h, xy_homogeneous)
+        return [uvw[0] / uvw[2], uvw[1] / uvw[2]]
+
+class HomographyCv(Homography):
+    def __init__(self):
+        super().__init__()
+        self.im0 = None
+        self.im = None
+        #print(dir(aruco))
+        self.detector = aruco.ArucoDetector(aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_250))
+
+    def loadMapImage(self,im0):
+        self.im0 = im0
+        self.corners, self.ids, _ = self.detector.detectMarkers(self.im0)
+        cns = []
+        for cn in self.corners:
+            cns.extend(cn[0])
+        self.drawMarker(im0,cns)
+
+    def loadMapDataUri(self):
+        im0 = data_uri_to_cv2_img(dataURL)
+        self.loadMapImage(im0)
+
+
+    def tryGetHomography(self,im):
+        self.im = im
+        corners, ids, _ = self.detector.detectMarkers(self.im)
+        if ids is None or len(ids) < 3: return False
+        vCn1,vCn2 = self.getCornerPairs(corners,ids)
+        self.drawMarker(self.im,vCn1)
+        if len(vCn1) < 12: return False
+        self.getHomography(vCn1,vCn2)
+        return True
+    
+    def tryGetHomographyDataUri(self):
+        return self.tryGetHomography(data_uri_to_cv2_img(testDataURL))
+
+    def drawMarker(self,bgr,corners):
+        assert len(corners)%4 == 0
+        nMarker = int(len(corners)/4)
+        for n in range(nMarker):
+            for i in range(4):
+                i1 = (i+3)%4
+                x0,y0 = corners[n*4 + i1]
+                x1,y1 = corners[n*4 + i]
+                cv2.line(bgr, (int(x0),int(y0)), (int(x1),int(y1)), (0, 255, 0), 2)
+
+    def drawPt(self,bgr,x,y):
+        cv2.circle(bgr, (x, y), 4, (0, 0, 255), -1)
+    
+    def getHomographyCv(self,vCn1,vCn2):
+        self.h, status = cv2.findHomography(np.array(vCn1),np.array(vCn2))
+
+hm = HomographyCv()
+
+def my_imshow(im,target):
+    fig1, ax1 = plt.subplots()
+    ax1.axis('off')
+    ax1.imshow(im)
+    display(fig1, target=target)
+
+def loadMapDataUri():
+    hm.loadMapImage(data_uri_to_cv2_img(dataURL))
+    #my_imshow(hm.im0,'mpl')
+
+def tryGetHomographyDataUri(): 
+    hasH = hm.tryGetHomography(data_uri_to_cv2_img(testDataURL))
+    x0,y0 = 400,400
+    xy = hm.warp_func(x0,y0)
+    x,y = int(xy[0]),int(xy[1])
+    cv2.circle(hm.im, (x0, y0), 8, (255, 0, 0), -1)
+    cv2.circle(hm.im0, (x, y), 4, (0, 0, 255), -1)
+    print(hm.h)
+    
+    mpl.rcParams[ 'figure.figsize' ] = ( 3,6 )
+    mpl.rcParams[ 'figure.dpi' ] = 200
+    fig = plt.figure()
+
+    # Add the first image
+    ax1 = fig.add_subplot(2, 1, 1)  # 1 row, 3 columns, first plot
+    ax1.imshow(hm.im0)
+    ax1.axis('off')  # Turn off axis numbers and ticks
+
+
+    # Add the second image
+    ax2 = fig.add_subplot(2, 1, 2)  # 1 row, 3 columns, second plot
+    ax2.imshow(hm.im)
+    ax2.axis('off')
+
+    display(fig, target='live')
+
+    </py-script>
+    <script>
+        function createObject(object, variableName){
+            //Bind a variable whose name is the string variableName
+            // to the object called 'object'
+            let execString = variableName + " = object"
+            console.log("Running '" + execString + "'");
+            eval(execString)
+        }
+
+        document.getElementById("do-math").addEventListener("click", () => {
+            const f0 =  pyodideGlobals.get('loadMapDataUri');
+            const f1 =  pyodideGlobals.get('tryGetHomographyDataUri');
+            f0();
+            f1();
+                
+            const c = pyodideGlobals.get('Circle')(4);
+            console.log(`The new radius of c is ${c.scale(2)}`);
+            console.log(`The area of c is ${c.area}`);
+            console.log(`name is ${window.name}`);
+            const f3 =  pyodideGlobals.get('data_uri_to_cv2_img');
+            f3(window.dataURL);
+        });
+
+    </script>
+
+  </body>
+</html>
