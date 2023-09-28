@@ -159,7 +159,7 @@ class HomographyCv(Homography):
         cv2.circle(self.im, (int(x), int(y)), 8, (255, 0, 0), -1)
         self.imshow(self.im,"#live canvas")
 
-        if self.h is None: return
+        if self.h is None: return -100,-100
         xy = self.warp_func(x,y)
         x,y = int(xy[0]),int(xy[1])
         im0 = self.im0.copy()
