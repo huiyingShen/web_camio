@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MP3 Player Example</title>
+    <style>
+        /* Simple styles to center the audio player */
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f4f4f4;
+        }
+        .audio-container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0px 0px 10px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="audio-container">
+        <h2>Sample MP3 Player</h2>
+        <audio controls>
+            <source src="Jackie Evancho - Safe & Sound.mp3" type="audio/mpeg">
+            Your browser does not support the audio element.
+        </audio>
+    </div>
+
+    <!-- Optional: Add JavaScript below if you need to handle the player programmatically -->
+    <script>
+        // Sample JavaScript to control the audio
+        const audioElement = document.querySelector('audio');
+
+        // Play the audio
+        audioElement.play();
+
+        // Pause the audio
+        audioElement.pause();
+    </script>
+</body>
+</html>

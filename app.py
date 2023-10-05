@@ -31,22 +31,11 @@ def tts():
 def hands():
     return render_template('hands.html')
 
-@app.route("/pnp")
-def pnp():
-    return render_template('solvePnP.html')
+@app.route("/mp3")
+def mp3():
+    return render_template('mp3.html')
 
 
-@app.route("/pnp2")
-def pnp2():
-    return render_template('solvePnP2.html')
-    
-@app.route("/aruco")
-def aruco():
-    return render_template('aruco.html')
-
-@app.route("/cam")
-def cam():
-    return render_template('arucoCamera.html')
 
 if __name__ == "__main__":
     # cer = os.path.join(os.path.dirname(__file__), 'server.crt')
