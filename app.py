@@ -1,8 +1,9 @@
-from flask import Flask,render_template
+import os
+from flask import Flask,render_template,send_from_directory
 
 
 app = Flask(__name__, static_folder="static", template_folder='templates')
-
+AUDIO_FOLDER = os.path.join("static", "audio")
 
 @app.route("/")
 def camio():
@@ -35,7 +36,14 @@ def hands():
 def mp3():
     return render_template('mp3.html')
 
+@app.route('/songs')
+def songs():
+    songs = os.listdir(AUDIO_FOLDER)  # List all the audio files
+    return render_template('songs.html', songs=songs)
 
+@app.route('/audio/<filename>')
+def stream_audio(filename):
+    return send_from_directory(AUDIO_FOLDER, filename)
 
 if __name__ == "__main__":
     # cer = os.path.join(os.path.dirname(__file__), 'server.crt')

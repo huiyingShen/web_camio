@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Streaming</title>
+</head>
+<body>
+
+<h2>Available Songs:</h2>
+<ul>
+    {% for song in songs %}
+    <li>
+        {{ song }}
+        <audio controls>
+            <source src="{{ url_for('stream_audio', filename=song) }}" type="audio/mpeg">
+            Your browser does not support the audio element.
+        </audio>
+    </li>
+    {% endfor %}
+</ul>
+
+</body>
+</html>
